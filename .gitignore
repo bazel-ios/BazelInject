@@ -1,0 +1,6 @@
+bazel-*
+.idea
+*.jar
+user.bazelrc
+external
+build.j

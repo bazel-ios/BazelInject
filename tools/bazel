@@ -1,0 +1,62 @@
+#!/bin/bash
+
+set -euo pipefail
+
+readonly REPO_DIR="$( cd "$( dirname "$(dirname "${BASH_SOURCE[0]}" )" )" >/dev/null 2>&1 && pwd )"
+
+bazel_options=()
+passthrough_env=(
+  "CC=clang"
+  "PATH=/usr/bin:/bin"
+  "USER=${USER:-build}"
+)
+
+if [[ -n "${HOME:-}" ]]; then
+  passthrough_env+=("HOME=$HOME")
+fi
+if [[ -n "${TERM:-}" ]]; then
+  passthrough_env+=("TERM=$TERM")
+fi
+if [[ -n "${COLUMNS:-}" ]]; then
+  passthrough_env+=("COLUMNS=$COLUMNS")
+fi
+
+# This is a development helper
+setup_injector() {
+    local injector_main="InjectionManager.java"
+
+    # shasum to noop compilation and reboot when it changes
+    local jarf="injector.$(/usr/bin/shasum $injector_main | cut -d ' ' -f1).jar"
+    local srcroot=$REPO_DIR
+    if [[ ! -f "$srcroot/bazel-inject/$jarf" ]]; then
+        echo "Bundling jar $injector_main.."
+        rm -rf $srcroot/bazel-inject
+        mkdir -p "$srcroot/bazel-inject/META-INF"
+        cp -f MANIFEST.MF "$srcroot/bazel-inject/META-INF/MANIFEST.MF"
+        cp -f  $srcroot/tools/jar_injector.sh "$srcroot/bazel-inject"
+        javac -d "$srcroot/bazel-inject" "$injector_main"
+        (cd "$srcroot/bazel-inject" && jar cmfv \
+            META-INF/MANIFEST.MF "$jarf" \
+            *.class *.sh)
+    fi
+
+    # For development - put a file libmain.jar inside of the repo - we'll inject
+    bazel_options+=(--host_jvm_args '-Dcom.google.devtools.build.lib.util.LogHandlerQuerier.class=null')
+    bazel_options+=(--host_jvm_args -Dbazel.inject=$REPO_DIR/libmain.jar)
+
+    # This seems to have to go last for now.
+    bazel_options+=(--host_jvm_args -jar)
+    bazel_options+=(--host_jvm_args $srcroot/bazel-inject/$jarf)
+}
+
+setup_injector
+
+if [[ -n "${BAZELISK_SKIP_WRAPPER:-}" ]]; then
+  passthrough_env+=("BAZELISK_SKIP_WRAPPER=$BAZELISK_SKIP_WRAPPER")
+fi
+
+env -i \
+    "${passthrough_env[@]}" \
+    "$BAZEL_REAL" \
+    ${bazel_options[@]-} \
+    "$@"
