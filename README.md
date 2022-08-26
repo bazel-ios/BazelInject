@@ -41,9 +41,9 @@ and other concepts you want but won't go into Bazel._
 This is a new set of APIs with similar ideas as the Starlark API, but enables an
 interface to primitives _like_ `Action`, `RuleDefinition`, and `Artifact` to
 unlock advanced capabilities. The gist is you might include jvm features in
-existing Starklark rules e.g. alongside `starklark_library`. For instance, a
-making your own add "build" APIs like `cc_common`, your own rules like
-`objc_library` based on `RuleDefinition`.
+existing Starklark rules e.g. alongside `starlark_library`. For instance, your
+own "build" APIs like `cc_common` or your own rules like `objc_library` based on
+`RuleDefinition`.
 
 _Note: while this may use similar concepts or directly use primitives like `RuleDefinition`, or `Spawn`, - it
 doesn't mean we'd make it intra-process or operate in the same way._
