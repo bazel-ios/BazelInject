@@ -3,9 +3,9 @@
 BazelInject is an experiment to add advanced capabilities to the Bazel ecosystem
 via external APIs. Today you can extend Bazel with Starlark, but said
 capabilities aren't possible to achieve via Starlark. Upstreaming the rules to
-Bazel would make it too flexible _per proposal rejections_, so add an external
-API to Bazel. This is a better alternative than everyone making forks and
-promotes reuse.
+Bazel would make it too flexible _per proposal rejections_, so enable it via
+_external_ APIs. This is the alternative to doing it in ad-hoc forks of Bazel
+and promotes reuse.
 
 ### Usage
 
@@ -31,33 +31,42 @@ _Note: if you're developing BazelInject - use a sha in the path - see `tools/baz
 
 ## Proposed APIs and longer term goals
 
-### External Java rules API for Starlark
+### External "native" API's for Starlark
 
-A new set of Java rule APIs with similar ideas as the Starlark API, but based on
-`RuleDefinition` to enable most capabilities. The gist is you might include jvm
-features in existing Starklark rules e.g. alongside `starklark_library`. For
-instance, a custom `RuleDefinition` or APIs like `cc_common`.
+Today you can add a macro or rule in starlark, these APIs enable your starlark
+rules to interface with Bazel internals how you see fit. _think [post analysis
+actions](https://docs.google.com/document/d/16iogGwUlISoN2WLha2TAaUdpYCjRiVQ2sRQ7--INxkg/edit#heading=h.9bo6b686lx37)
+and other concepts you want but won't go into Bazel._
 
-_Note: while this may may use `RuleDefinition` - it doesn't mean we'd make it
-intra-process or operate in the same way._
+This is a new set of APIs with similar ideas as the Starlark API, but enables an
+interface to primitives _like_ `Action`, `RuleDefinition`, and `Artifact` to
+unlock advanced capabilities. The gist is you might include jvm features in
+existing Starklark rules e.g. alongside `starklark_library`. For instance, a
+making your own add "build" APIs like `cc_common`, your own rules like
+`objc_library` based on `RuleDefinition`.
 
+_Note: while this may use similar concepts or directly use primitives like `RuleDefinition`, or `Spawn`, - it
+doesn't mean we'd make it intra-process or operate in the same way._
 
-### BlazeModule startup option
+### BlazeModule subset hooks
 
-A new startup Bazel option `-Dbazel.module=` that loads a `BlazeModule` at the
-specified path: e.g. 
+A new startup Bazel option `-Dbazel.module=` that loads a `BlazeModule` or
+similar at the specified path: e.g. 
 ```
 -Dbazel.module=com.my.bazel.module:/path/to/module.jar
 ```
-_`BlazeModule` is useful to add custom spawn strategies, rules, and more_
+_`BlazeModule` is low level way to add custom spawn strategies, rules, and more.
+This API could start with a subset of BlazeModule_
 
-### Why do you want to give developers advanced capabilities?
+## Why do you want to give developers advanced capabilities?
 
-Maintainability - touching Bazel providers, rules, or spawns has implicated
-serious maintainer thrash and worse, they only work how the Bazel authors want
-them to.  This is a similar situation that `rules_ios` has with `rules_apple`
-and `Tulsi` - but on a lower level. Dropping the Bazel rules will fix most
-issues and reduce complexity
+Flexibility - there are key features community build system engineers would like
+to add. The capabilites we'll enable here aren't suited for Bazel's core
+codebase, release workflow, or PR review process.
+
+Maintainability - interfacing with native Bazel providers, rules, and spawns is
+piviotal to using it at first, but for more advanced ecosystems implicates
+maintainer thrash and has severe limitations.
 
 ## Why not just cut Bazel releases for rules_ios, Foo, or Bar's usage?
 
@@ -66,8 +75,15 @@ Reuse - developing a set of advanced capabilities we can depend on in
 their own builds. This might mean restricting to the Java rules API.
 
 Finally, some of the rules will hinge on assumptions about actions end to end
-e.g. how we build an iOS app in `rules_ios`. If it is beneficial, Bazel
-maintainers can optionally adopt the proposed API in `bazelbuild`. _And, I'd
-like to include the Java code into `rules_ios` - and cutting releases of the
-core jars with `rules_ios`_
+e.g. action refinement based on how we build an iOS app with `rules_ios`.  _I'd
+also want to provide optional features that call native functionaity directly in
+`rules_ios` e.g. flipping on optimizations backed by JVM bytecode and these
+APIs`_
 
+## Use cases
+
+[Powerful APIs](https://github.com/bazel-ios/BazelInject#external-java-rules-api-for-starlark) and/or adding rules via `BlazeModule`, jar injection, enable a number of features like:
+
+- [Post analysis actions](https://docs.google.com/document/d/16iogGwUlISoN2WLha2TAaUdpYCjRiVQ2sRQ7--INxkg/edit#heading=h.9bo6b686lx37)
+- Comprehensive integration of [rules_ios Virtual frameworks](https://github.com/bazel-ios/rules_ios/pull/277)
+- Variants of C++ header scanning
